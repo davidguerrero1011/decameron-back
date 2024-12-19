@@ -102,7 +102,7 @@ class HotelsController extends Controller
     {
         try {
             $activate = Hotels::find($request->id);
-            $activate->state = '1';
+            $activate->state = $request->state == '1' ? '0' : '1';
             $activate->save();
 
             return response()->json([ ["state" => "success"], ["message" => "Hotel Activado de forma exitosa"] ]);
@@ -140,8 +140,7 @@ class HotelsController extends Controller
                                     $query->on('acommodation_by_rooms_types.acommodation_type_id', 'acommodation_types.id');
                             })
                             ->select('acommodation_types.type_acommodation', 'acommodation_types.id', 'acommodation_by_rooms_types.room_type_id', 'acommodation_by_rooms_types.acommodation_type_id')
-                            ->where('room_type_id', $request->roomId)
-                            ->where('acommodation_types.state', '1')
+                            ->where([ ['room_type_id', $request->roomId], ['acommodation_types.state', '1'] ])
                             ->get();
 
         $response = [];
@@ -177,13 +176,11 @@ class HotelsController extends Controller
         ->get();
 
         return response()->json($conf);
-
     }
 
 
     public function storeConfiguration(Request $request) 
     {
-
         $rooms = Hotels::where('state', '1')->get();
         $assign = RoomsConfiguration::where('hotel_id', $request->hotelId)->get();
 
@@ -204,7 +201,6 @@ class HotelsController extends Controller
             $confRoom->save();
 
             return response()->json(["status" => "success", "message" => "Cuarto No ". $request->roomConf ." fue configurado con su tipo y su acomodación!"]);
-
         }
     }
 
@@ -226,5 +222,44 @@ class HotelsController extends Controller
             $response = ["status", "error"];
         }
         return response()->json($response);
+    }
+
+
+    public function deleteHotel($id)
+    {
+        try {
+            Hotels::where('id', $id)->delete();
+            $response = ["status", "success"];
+        } catch (Exception $e) {
+            Log::info("Error: ". $e);
+            $response = ["status", "error"];
+        }
+        return response()->json($response);
+
+    }
+
+
+    public function updateConfiguration(Request $request)
+    {
+        Log::info($request);
+        try {
+
+            $updateConf = RoomsConfiguration::find($request->hotelId);
+            $updateConf->rooms_number         = 1;
+            $updateConf->rooms_type_id        = $request->roomTypes;
+            $updateConf->acommodation_type_id = $request->typeAcommodation;
+            $updateConf->hotel_id             = $request->hotelId;
+            $updateConf->updated_at           = date('Y-m-d H:i:s');
+            $updateConf->save();
+
+            $response = ["status" => "success", "smg" => "Configuración del hotel actualizado exitosamente"];
+            return response()->json($response);
+
+        } catch (Exception $e) {
+            Log::info("Error: ". $e);
+            $response = ["status" => "error", "smg" => "La configuración del hotel no pude ser actualizada, comuniquese con el administrador"];
+            return response()->json($response);
+        }
+
     }
 }
